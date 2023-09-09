@@ -14,13 +14,14 @@ Seamless clone is an advanced image editing feature, not like direct cloning ima
 
 (b)
 
-My test result:
 
 Fig. 1 Seamless clone concepts.
 
+My test result:
+
 ![image](https://github.com/wujinzhong/seamlessCloneOptimization/assets/52945455/d8889fc4-b57b-42e2-acee-f08c4295d3f6)
 
-+
+add
 
 ![image](https://github.com/wujinzhong/seamlessCloneOptimization/assets/52945455/780841ca-f238-4436-a462-739010744beb)
 
