@@ -50,9 +50,9 @@ add
 > 
 > goto “/seamlessCloneOptimization/compare”, open file “./vs.py” find and modify output file path “xxxxx/opencv-seamless-cloning-example-rect-all-255.bmp”, ”xxxx/ucRGB_Output.bmp”, “xxxxx/g*.yml”, “xxxxx/mod_diff*.yml”, to reflect your file path.
 > 
-> 9.	Run “python vs.py” and the output look like is in diff.yml
+> Run “python vs.py” and the output look like is in diff.yml
 
-##Install OpenCV from source code
+## Install OpenCV from source code
 >apt-get update && apt-get install -y build-essential pkg-config software-properties-common cmake git libgtk2.0-dev libavcodec-dev libavformat-dev libswscale-dev && add-apt-repository "deb http://security.ubuntu.com/ubuntu xenial-security main" && apt install -y libjasper1 libjasper-dev python-dev python-numpy libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev libjasper-dev libdc1394-22-dev libavcodec-dev libavformat-dev libswscale-dev libv4l-dev liblapacke-dev libxvidcore-dev libx264-dev libatlas-base-dev gfortran
 >
 >apt-get install -y ffmpeg
