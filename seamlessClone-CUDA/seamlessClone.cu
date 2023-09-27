@@ -106,19 +106,19 @@ inline int findSampleId(int argc, const char **argv) {
 }
 
 int main(int argc, const char *argv[]) {
-  int pidx;
-  if ((pidx = findParamIndex(argv, argc, "-h")) != -1 ||
-      (pidx = findParamIndex(argv, argc, "--help")) != -1) {
-    std::cout << "Usage: " << argv[0]
-              << " [-device=device_id]"
-              << std::endl;
-    return EXIT_SUCCESS;
-  }
-
+  printf("argc: %d\n", argc);
+	for(int i=0; i<argc; i++)
+		printf("argv[%d]: %s\n", i, argv[i]);
+	assert( argc==7 );
+  char* src_image_path = (char*)argv[1];
+	char* dst_image_path = (char*)argv[2];
+  char* mask_image_path = (char*)argv[3];
+	int centerX = atoi(argv[4]);
+	int centerY = atoi(argv[5]);
+  int gpu = atoi(argv[6]);
+	
   seamlessClone_params_t params;
-  params.dev = 0;
-  params.dev = findCudaDevice(argc, argv);
-  int sampleId = findSampleId(argc, argv);
+  params.dev = gpu;
   cudaDeviceProp props;
   checkCudaErrors(cudaGetDeviceProperties(&props, params.dev));
   printf("Using GPU %d (%s, %d SMs, %d th/SM max, CC %d.%d, ECC %s)\n",
@@ -142,34 +142,14 @@ int main(int argc, const char *argv[]) {
 #else
   const int LOOPS = 50;
 #endif
-  int centerX = 800, centerY = 100;
 
   // align API with OpenCV //////////////////////////////////////////////////////////////
   Mat destMat, patchMat, maskMat, _blend;
-  vector<string> ymls = {
-  "./images/dst.yml",
-  "./images/src_154x100.yml",
-  "./images/src_mask_154x100.yml",
-  
-  "./images/dst.yml",
-  "./images/src.yml",
-  "./images/src_mask_rect255.yml",
-
-  "./images/dst.yml",
-  "./images/src_592x592.yml",
-  "./images/src_mask_592x592.yml",
-
-  "./images/dst_4800x2694.yml",
-  "./images/src_2400x1552.yml",
-  "./images/src_mask_2400x1552.yml",
-  };
-  int file_idx = sampleId;
-  if( file_idx!=3 ) centerY = 450;
-  if( file_idx==9 ) { centerX = 2400; centerY = 1347; }
+  //
   if( load_inputs(destMat, patchMat, maskMat,
-                  ymls[file_idx+0],
-                  ymls[file_idx+1],
-                  ymls[file_idx+2]))
+                  dst_image_path,
+                  src_image_path,
+                  mask_image_path))
         return EXIT_FAILURE;
   Point p(centerX, centerY);
   int flags = NORMAL_CLONE;
@@ -185,7 +165,7 @@ int main(int argc, const char *argv[]) {
 
   for( int l=0; l<LOOPS; l++ )
   {
-  	seamlessClone->seamlessCloneGPU( destMat, patchMat, maskMat, p, _blend, flags );
+    seamlessClone->seamlessCloneGPU( destMat, patchMat, maskMat, p, _blend, flags );
 #if SCDEBUG
 	std::stringstream ss;
 	if( l==0 )

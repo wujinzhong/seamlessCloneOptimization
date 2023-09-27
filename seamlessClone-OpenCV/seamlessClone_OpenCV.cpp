@@ -4,6 +4,11 @@
 #include "opencv2/videoio.hpp"
 #include "opencv2/photo.hpp"
 #include <iostream>
+#include <chrono>
+#include <cassert>
+using namespace std::chrono;
+#include <iostream>
+using namespace std;
 
 using namespace cv;
 
@@ -21,7 +26,7 @@ void write2Yaml( const char* file_dir, const char* mat_name, const Mat& mat )
 	fs<<"data"<<mat;
 }
 
-Mat readFromYaml( const char* file_path )
+Mat readFromYaml( char* file_path )
 {
 	Mat mat;
 
@@ -33,19 +38,24 @@ Mat readFromYaml( const char* file_path )
 
 #define USE_POLYGON_MASK false
 
-void seamlessClone_sample()
+void seamlessClone_sample( int argc, char** argv )
 {
+	printf("argc: %d\n", argc);
+	for(int i=0; i<argc; i++)
+		printf("argv[%d]: %s\n", i, argv[i]);
+	assert( argc==5 );
+	char* src_image_path = (char*)argv[1];
+	char* dst_image_path = (char*)argv[2];
+	int centerX = atoi(argv[3]);
+	int centerY = atoi(argv[4]);
+
     // Read images : src image will be cloned into dst
-#if false
-    //Mat src = imread("./images/airplane2.jpg");
-	//Mat src = imread("./images/airplane592x592.jpg");
-	Mat src = imread("./images/airplane154x100.jpg");
-	Mat dst = imread("./images/sky.jpg");
-#else
-    //Mat src = readFromYaml("./images/src.yml");
-    //Mat dst = readFromYaml("./images/dst.yml");
-    Mat src = readFromYaml("./images/src_2400x1552.yml");
-    Mat dst = readFromYaml("./images/dst_4800x2694.yml");
+#if true // load images from jpg
+    Mat src = imread(src_image_path);
+	Mat dst = imread(dst_image_path);
+#else // just for testing, load images from yml, pre-convert jpg to yml via jpg2yml
+	Mat src = readFromYaml(src_image_path);
+    Mat dst = readFromYaml(dst_image_path);
 #endif
     // Create a rough mask around the airplane.
     Mat src_mask = Mat::zeros(src.rows, src.cols, src.depth());
@@ -81,32 +91,42 @@ void seamlessClone_sample()
     	    fillPoly(src_mask, polygons, num_points, 1, Scalar(255,255,255));
     }
 #endif
-    // The location of the center of the src in the dst
-    //Point center(800,100);
-    Point center(2400,1347);
-    write2Yaml_( src_mask );
+	imwrite("./output/opencv-seamless-cloning-mask.jpg", src_mask);
+	imwrite("./output/opencv-seamless-cloning-mask.bmp", src_mask);
+	write2Yaml_( src_mask );
+
     
-    // Seamlessly clone src into dst and put the results in output
-    Mat output;
-    seamlessClone(src, dst, src_mask, center, output, NORMAL_CLONE);
+	// The location of the center of the src in the dst
+	Point center(centerX, centerY);    
     
+    Mat result;
+	//warmup
+	seamlessClone(src, dst, src_mask, center, result, NORMAL_CLONE);
+
+	//profiling
+	auto start = high_resolution_clock::now();
+	{
+		// Seamlessly clone src into dst and put the results in result
+    	seamlessClone(src, dst, src_mask, center, result, NORMAL_CLONE);
+	}
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<microseconds>(stop - start);
+	cout << endl << "*************************************************************" <<endl<<endl;
+	cout << "opencv seamlessClone() executing time for patch " << src.cols <<"x"<<src.rows <<": " << duration.count()/1000.0f << " ms."<<endl;
+	cout << endl << "*************************************************************" <<endl<<endl;
+
     // Save result
-    //imwrite("./images/opencv-seamless-cloning-example.jpg", output);
-#if USE_POLYGON_MASK
-    imwrite("./output/opencv-seamless-cloning-example-polygon.bmp", output);
-#else
-    //imwrite("./output/opencv-seamless-cloning-example-rect-all-255.bmp", output);
-    imwrite("./output/opencv-seamless-cloning-example-rect-all-255-2400x1552.bmp", output);
-#endif
-    //Mat src_154x100 = src;
-    //write2Yaml_( src );
-	//write2Yaml_( dst );
-	//write2Yaml_( output );
+    imwrite("./output/opencv-seamless-cloning-result.jpg", result);
+	imwrite("./output/opencv-seamless-cloning-result.bmp", result);
+    write2Yaml_( src );
+	write2Yaml_( dst );
+	write2Yaml_( result );
 }
 
-int main()
+//clear && make && ./seamlessClone_OpenCV ./images/img_cropped2_356x376.jpg ./images/img_orl.jpg 936 192
+int main( int argc, char** argv )
 {
-	seamlessClone_sample(  );
+	seamlessClone_sample( argc, argv );
 	return 0;
 }
 
