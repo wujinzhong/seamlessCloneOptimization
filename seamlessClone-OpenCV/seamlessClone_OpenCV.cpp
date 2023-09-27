@@ -123,7 +123,7 @@ void seamlessClone_sample( int argc, char** argv )
 	write2Yaml_( result );
 }
 
-//clear && make && ./seamlessClone_OpenCV ./images/img_cropped2_356x376.jpg ./images/img_orl.jpg 936 192
+//clear && make && clear && make && ./seamlessClone_OpenCV ./images/airplane.jpg ./images/sky.jpg 800 150
 int main( int argc, char** argv )
 {
 	seamlessClone_sample( argc, argv );
