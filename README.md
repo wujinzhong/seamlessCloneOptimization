@@ -44,9 +44,19 @@ add
 > 
 > download data from here, https://drive.google.com/drive/folders/1k4pJLi0T0u3stawnQ76NkLchA7tTmgO7?usp=sharing, and put to target folder repectively.
 > 
-> Copy “seamlessClone-CUDA” dir to “/your_cuda_samples_repo/Samples/4_CUDA_Libraries/”. Goto “./seamlessClone-CUDA” and run “./make2.sh” (open make2.sh to see detail usage) and the output image is in “./seamlessClone-CUDA/output/ucRGB_Output.bmp”, this is the seamless cloned image from source patch “./images/src.yml” and destination image “./images/dst.yml”. We use yml format for source/destination images to make sure the input is always exactly the same for our CUDA re-implementation and OpenCV. Open “./seamlessClone-CUDA/output/ucRGB_Output.bmp” to see if the output is correct.
+> Copy “seamlessClone-CUDA” dir to “/your_cuda_samples_repo/Samples/4_CUDA_Libraries/”.
+>
+> Copy “seamlessClone-OpenCV” dir to “/your_opencv_dir/OpenCV-3.4.5/opencv-3.4.5/samples/cpp/” and goto “./seamlessClone-OpenCV”. “make” it and run “clear && make && ./seamlessClone_OpenCV ./images/airplane.jpg ./images/sky.jpg 800 150”, airplane.jpg is src patch, sky.jpg is dst background, (800,150) are centerX/centerY are integer where the src patch is located in dst background. Check the OpenCV output here “./output/opencv-seamless-cloning-result.bmp”.
+>
+> copy *.yml to your seamlessClone-CUDA/images folder.
 > 
-> Copy “seamlessClone-OpenCV” dir to “/your_opencv_dir/OpenCV-3.4.5/opencv-3.4.5/samples/cpp/” and goto “./seamlessClone-OpenCV”. “make” it and run “clear && make && ./seamlessClone_OpenCV ./your_src_patch.jpg ./your_dst_background.jpg centerX centerY”, centerX/centerY are integer where the src patch is located in dst background. Check the OpenCV output here “./output/opencv-seamless-cloning-example-rect-all-255.bmp”.
+> cp /your/opencv-3.4.5/samples/cpp/seamlessClone_OpenCV/output/src.yml ./your/seamlessClone-CUDA/images/
+>
+> cp /your/opencv-3.4.5/samples/cpp/seamlessClone_OpenCV/output/dst.yml ./your/seamlessClone-CUDA/images/
+>
+> cp /your/opencv-3.4.5/samples/cpp/seamlessClone_OpenCV-v12/output/src_mask.yml ./your/seamlessClone-CUDA/images/
+> 
+> Goto “./seamlessClone-CUDA” and run “./make2.sh” (./seamlessClone ./images/src.yml ./images/dst.yml ./images/src_mask.yml 800 150 1) (open make2.sh to see detail usage) and the output image is in “./seamlessClone-CUDA/output/ucRGB_Output.bmp”, this is the seamless cloned image from source patch “./images/src.yml” and destination image “./images/dst.yml”. We use yml format for source/destination images to make sure the input is always exactly the same for our CUDA re-implementation and OpenCV. Open “./seamlessClone-CUDA/output/ucRGB_Output.bmp” to see if the output is correct.
 > 
 > goto “/seamlessCloneOptimization/compare”, open file “./vs.py” find and modify output file path “xxxxx/opencv-seamless-cloning-example-rect-all-255.bmp”, ”xxxx/ucRGB_Output.bmp”, “xxxxx/g*.yml”, “xxxxx/mod_diff*.yml”, to reflect your file path.
 > 
