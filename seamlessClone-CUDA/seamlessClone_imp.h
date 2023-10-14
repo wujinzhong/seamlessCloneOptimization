@@ -10,7 +10,7 @@
 #include <cublas_v2.h>
 #include <vector>
 
-#define SCDEBUG true
+#define SCDEBUG false
 #define SC_Enable_Cooperative_Group false
 #define SC_FFT_ENABLE true
 
@@ -23,7 +23,7 @@
 #define RELEASE_DEV_PTR( ptr ) 		\
 {					\
 	if(ptr!=NULL)			\
-		cudaFree(ptr);		\
+		checkCudaErrors(cudaFree(ptr));		\
 	ptr = NULL;			\
 }
 
@@ -61,57 +61,6 @@ void write2Yaml( const char* file_dir, const char* mat_name, const Mat& mat )
 #else
 void write2Yaml( const char* file_dir, const char* mat_name, const Mat& mat ){}
 #endif
-
-Mat readFromYaml( const char* file_path )
-{
-	Mat mat;
-	printf("begin reading file: %s\n", file_path);
-
-	cv::FileStorage fs( file_path, cv::FileStorage::READ);
-	fs["data"]>>mat;
-
-    printf("mat shape: %d, %d, %d\n", mat.cols, mat.rows, mat.channels());
-
-	return mat;
-}
-
-bool loadImageFromYml( const char* file_path, unsigned char** bufs, int* pitchs, int* widths, int* heights, cudaStream_t stream )
-{
-	Mat mat = readFromYaml( file_path );
-	assert( mat.type()==CV_8UC3 || mat.type()==CV_8UC1);
-        assert( mat.channels()==3 || mat.channels()==1);
-	for( int ch=0; ch<mat.channels(); ch++ )
-	{
-		widths[ch] = mat.cols;
-		heights[ch] = mat.rows;
-		pitchs[ch] = mat.cols;
-		checkCudaErrors( cudaMalloc( (void**)&bufs[ch], sizeof(unsigned char)*widths[ch]*heights[ch] ) );
-	}
-
-	unsigned char* outData = new unsigned char[mat.cols*mat.rows*mat.channels()];
-
-	int nr=mat.rows;
-    	for(int k=0;k<nr;k++)
-    	{
-    	    const uchar* inData=mat.ptr<uchar>(k);
-
-	    for( int col=0; col<mat.cols; col++ )
-	    {
-    	    	for(int ch=0; ch<mat.channels(); ch++)
-    	    	{
-    	        	outData[ch*widths[ch]*heights[ch]+k*pitchs[ch]+col] = inData[col*mat.channels()+mat.channels()-1-ch];
-    	    	}
-	    }
-    	}
-
-	for( int ch=0; ch<mat.channels(); ch++ )
-	{
-		checkCudaErrors( cudaMemcpyAsync( bufs[ch], outData+ch*widths[ch]*heights[ch], sizeof(unsigned char)*widths[ch]*heights[ch], cudaMemcpyHostToDevice, stream ) );
-	}
-
-	delete[] outData;
-	return true;
-}
 
 typedef struct Point2D{
 	Point2D():x(0), y(0){}
@@ -162,7 +111,7 @@ private:
 	SCImageOrder od/*=SCImageOrder_Row*/, SCImageCapacityType capacityType, bool bAddToOccupy=true )
 	{
 		unsigned char* ptr = NULL;
-		int sz = h*c*w*elmtSz_(dt);
+		int sz = h*c*w*ELMT_SIZE(dt);
 		switch( capacityType )
 		{
 		    case SCImageCapacityType_x1:
@@ -177,7 +126,6 @@ private:
 
 		checkCudaErrors( cudaMalloc((void**)&ptr, sz) );
 		SCImage img((void*)ptr, w, h, c, dt, od, sz);
-		//img.print();
 		if( bAddToOccupy ) mOccupy += sz;
 		return img;
 	}
@@ -188,10 +136,10 @@ public:
 
     void resize( int w, int h, int c, SCImageDataType dt, SCImageOrder od=SCImageOrder_Row )
     {
-        int new_sz = h*c*w*elmtSz_(dt);
+        int new_sz = h*c*w*ELMT_SIZE(dt);
         if( new_sz>mCapacity )
         {
-            destroy();
+			destroy();
             *this = createImage( w, h, c, dt, SCImageOrder_Row, SCImageCapacityType_xN, true );
         }
         else
@@ -204,31 +152,59 @@ public:
 	{
 		if( mData!=NULL )
 		{
+			
 			checkCudaErrors( cudaFree(mData) );
 			*this = SCImage();
+			mData = NULL;
 		}
 	}
 
-	static int elmtSz_( SCImageDataType dt )
+	static int ELMT_SIZE( SCImageDataType dt )
 	{
 		switch( dt )
-                {
-                        case SCImageDataType_UC:
-                                return 1;
-                                break;
-                        case SCImageDataType_Float:
+		{
+			case SCImageDataType_None:
+				return 0;
+				break;
+			case SCImageDataType_UC:
+				return 1;
+				break;
+			case SCImageDataType_Float:
 			case SCImageDataType_Int32:
-                                return 4;
-                                break;
-                        default:
-                                assert(false);
-                                break;
-                }
+				return 4;
+				break;
+			default:
+				assert(false);
+				break;
+		}
 		return -1;
 	}
 	int elmtSz()
 	{
-		return elmtSz_(mDType);
+		switch( mDType )
+		{
+			case SCImageDataType_None:
+				assert( mData==NULL );
+				assert( mWidth==0 );
+				assert( mHeight==0 );
+				assert( mChannel==0 );
+				assert( mDType==SCImageDataType_None );
+				assert( mOrder==SCImageOrder_Row );
+				assert( mCapacity==0 );
+				return 0;
+				break;
+			case SCImageDataType_UC:
+				return 1;
+				break;
+			case SCImageDataType_Float:
+			case SCImageDataType_Int32:
+				return 4;
+				break;
+			default:
+				assert(false);
+				break;
+		}
+		return -1;
 	}
 
 	int sz()
@@ -394,22 +370,22 @@ public:
 		switch( mDType )
 		{
 			case SCImageDataType_None:
-                                return "None";
+                return (char*)"None";
 				break;
 			case SCImageDataType_UC:
-				return "UC";
+				return (char*)"UC";
 				break;
 			case SCImageDataType_Float:
-                                return "Float";
-                                break;
+				return (char*)"Float";
+				break;
 			case SCImageDataType_Int32:
-                                return "Int32";
-                                break;
+				return (char*)"Int32";
+				break;
 			default: 
 				assert(false);
 				break;
 		}
-		return "";
+		return (char*)"";
 	}
 
 	// returned pointer deleted outside
@@ -418,6 +394,14 @@ public:
 	{
 		unsigned char* tmpImg = copyD2H( stream );
 		return (DType*)tmpImg;
+	}
+
+	void print()
+	{
+		printf( "data(%lx), width(%d), height(%d), channel(%d), pitch(%d), dtype(%d), order(%s)\n", 
+				(unsigned long)(mData), mWidth, mHeight, mChannel, pitch(),
+				mDType,
+		     		mOrder==SCImageOrder_Row?"Row":"Column" );
 	}
 
 	void print( cudaStream_t stream )
@@ -492,4 +476,20 @@ void checkCublasErrors( cublasStatus_t error )
       break;
   }
 }
+
+class NPPUtil{
+public:
+	NPPUtil(){ printNPPVersion(); }
+	~NPPUtil(){}
+
+	void setStream( cudaStream_t stream ){ if( nppGetStream()!=stream ) nppSetStream(stream); }
+	void printNPPVersion();
+	void copyROI( SCImage& dst, int x0, int y0,
+                SCImage& src, int x1, int y1,
+                int width, int height, cudaStream_t stream );
+	void convertFloat2UC( SCImage* dst, SCImage* src, Npp32f scale );
+public:
+
+
+};
 #endif
