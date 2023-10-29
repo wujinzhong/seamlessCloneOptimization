@@ -236,9 +236,33 @@ static Mat readFromYaml( const char* file_path )
 	return mat;
 }
 
-Mat seamlessClone_imp( void* face, void* body, void* mask, int centerX, int centerY, int gpu_id ){
+void* seamlessClone_imp_create_instance( int gpu_id )
+{
   int gpu = gpu_id;
 
+  seamlessClone_params_t params;
+  params.dev = gpu;
+  cudaDeviceProp props;
+  checkCudaErrors(cudaGetDeviceProperties(&props, params.dev));
+  printf("Using GPU %d (%s, %d SMs, %d th/SM max, CC %d.%d, ECC %s)\n",
+         params.dev, props.name, props.multiProcessorCount,
+         props.maxThreadsPerMultiProcessor, props.major, props.minor,
+         props.ECCEnabled ? "on" : "off");
+
+  // create cuda stream
+  checkCudaErrors(
+      cudaStreamCreateWithFlags(&params.stream, cudaStreamNonBlocking));
+
+  SeamlessClone *seamlessClone = (SeamlessClone*)malloc(sizeof(SeamlessClone));
+  memset( seamlessClone, 0, sizeof(SeamlessClone) );
+  seamlessClone->init( params.stream, 
+                        props.multiProcessorCount, 
+                        props.maxThreadsPerMultiProcessor );
+  
+  return (void*)seamlessClone; //return EXIT_SUCCESS;
+}
+
+Mat seamlessClone_imp_run( void* instance_ptr, void* face, void* body, void* mask, int centerX, int centerY, int gpu_id, bool bSync=true ){
   Mat patchMat=*((Mat*)face), destMat=*((Mat*)body), maskMat=*((Mat*)mask);
 
   //patchMat = readFromYaml("./images/src.yml");
@@ -250,27 +274,17 @@ Mat seamlessClone_imp( void* face, void* body, void* mask, int centerX, int cent
     patchMat.channels()==3 &&
     maskMat.channels()==1 );
 
-  seamlessClone_params_t params;
-  params.dev = gpu;
-  cudaDeviceProp props;
-  checkCudaErrors(cudaGetDeviceProperties(&props, params.dev));
-  printf("Using GPU %d (%s, %d SMs, %d th/SM max, CC %d.%d, ECC %s)\n",
-         params.dev, props.name, props.multiProcessorCount,
-         props.maxThreadsPerMultiProcessor, props.major, props.minor,
-         props.ECCEnabled ? "on" : "off");
+  SeamlessClone *seamlessClone = (SeamlessClone*)instance_ptr;
+  assert(seamlessClone!=NULL);
+  
 
-  // stream for decoding
-  checkCudaErrors(
-      cudaStreamCreateWithFlags(&params.stream, cudaStreamNonBlocking));
-
-  SeamlessClone *seamlessClone = (SeamlessClone*)malloc(sizeof(SeamlessClone));
-  memset( seamlessClone, 0, sizeof(SeamlessClone) );
-  seamlessClone->init( params.stream, 
-                        props.multiProcessorCount, 
-                        props.maxThreadsPerMultiProcessor );
   cudaEvent_t start, stop;
-  checkCudaErrors( cudaEventCreate(&start) );
-  checkCudaErrors( cudaEventCreate(&stop) );
+  if(bSync)
+  {
+    checkCudaErrors( cudaEventCreate(&start) );
+    checkCudaErrors( cudaEventCreate(&stop) );
+  }
+  
 
 #if SCDEBUG
   const int LOOPS = 1;
@@ -292,45 +306,65 @@ Mat seamlessClone_imp( void* face, void* body, void* mask, int centerX, int cent
 
   int   maskWidth = seamlessClone->ucMask.mWidth,
         maskHeight = seamlessClone->ucMask.mHeight;
-  checkCudaErrors(cudaStreamSynchronize(params.stream));
-  checkCudaErrors( cudaEventRecord(start, params.stream) );
+  
+  if(bSync)
+  {
+    checkCudaErrors(cudaStreamSynchronize(seamlessClone->mStream));
+    checkCudaErrors( cudaEventRecord(start, seamlessClone->mStream) );
+  }  
 
   for( int l=0; l<LOOPS; l++ )
   {
     retMat = seamlessClone->seamlessCloneGPU( destMat, patchMat, maskMat, p, _blend, flags );
 #if SCDEBUG
-	std::stringstream ss;
-	if( l==0 )
-		ss<<"./output/ucRGB_Output"<<".bmp";
-	else
-		ss<<"./output/ucRGB_Output"<<l<<".bmp";
-	//writeSCImage(ss.str().c_str(), &seamlessClone->ucRGB_Output, 0 );
-  imwrite( ss.str().c_str(), _blend );
-	if( l<LOOPS-1 ) seamlessClone->ucRGB_Output.setConstant(0, params.stream);
+    std::stringstream ss;
+    if( l==0 )
+      ss<<"./output/ucRGB_Output"<<".bmp";
+    else
+      ss<<"./output/ucRGB_Output"<<l<<".bmp";
+    //writeSCImage(ss.str().c_str(), &seamlessClone->ucRGB_Output, 0 );
+    imwrite( ss.str().c_str(), _blend );
+    if( l<LOOPS-1 ) seamlessClone->ucRGB_Output.setConstant(0, seamlessClone->mStream);
 #endif
-	checkCudaErrors(cudaStreamSynchronize(params.stream));
+	  
+    if(bSync)
+    {
+      checkCudaErrors(cudaStreamSynchronize(seamlessClone->mStream));
+    }
   }
 
-  checkCudaErrors(cudaEventRecord(stop, params.stream));
-  checkCudaErrors(cudaEventSynchronize(stop));
+  if(bSync)
+  {
+    checkCudaErrors(cudaEventRecord(stop, seamlessClone->mStream));
+    checkCudaErrors(cudaEventSynchronize(stop));
 
-  float msCompute = 0.0f;
-  checkCudaErrors(cudaEventElapsedTime(&msCompute, start, stop));
-  printf( "Compute stage performance time= %.3f msec, patch size=%dx%d\n",
-            msCompute/LOOPS, maskWidth, maskHeight);
-  //writeSCImage("./output/ucRGB_Output.bmp", &seamlessClone->ucRGB_Output, 0 );
-  printf( "total device memory used: %d\n", SCImage::getTotalDeviceMemoryOccupy() );
-  checkCudaErrors(cudaStreamDestroy(params.stream));
-  checkCudaErrors(cudaEventDestroy(start));
-  checkCudaErrors(cudaEventDestroy(stop));
-
-  seamlessClone->delete_();
-  free(seamlessClone); seamlessClone = NULL;
+    float msCompute = 0.0f;
+    checkCudaErrors(cudaEventElapsedTime(&msCompute, start, stop));
+    printf( "Compute stage performance time= %.3f msec, patch size=%dx%d\n",
+              msCompute/LOOPS, maskWidth, maskHeight);
+    //writeSCImage("./output/ucRGB_Output.bmp", &seamlessClone->ucRGB_Output, 0 );
+    printf( "total device memory used: %d\n", SCImage::getTotalDeviceMemoryOccupy() );
+    checkCudaErrors(cudaEventDestroy(start));
+    checkCudaErrors(cudaEventDestroy(stop));
+  }
 
   return _blend; //return EXIT_SUCCESS;
 }
 
-//int main(int argc, const char *argv[])
-//{
-//  int ret /*Mat retMat*/ = seamlessClone_imp(argc, argv);
-//}
+void seamlessClone_imp_destroy( void* instance_ptr ){
+  
+  SeamlessClone *seamlessClone = (SeamlessClone*)instance_ptr;
+  
+  checkCudaErrors(cudaStreamDestroy(seamlessClone->mStream));
+  seamlessClone->delete_();
+  free(seamlessClone); seamlessClone = NULL;
+
+  return; //return EXIT_SUCCESS;
+}
+
+void seamlessClone_imp_sync( void* instance_ptr ){
+  SeamlessClone *seamlessClone = (SeamlessClone*)instance_ptr;
+  checkCudaErrors(cudaStreamSynchronize(seamlessClone->mStream));
+
+  return;
+}

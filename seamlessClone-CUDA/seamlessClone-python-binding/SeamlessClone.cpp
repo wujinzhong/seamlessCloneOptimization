@@ -22,7 +22,6 @@
 
 #include <vector>
 
-#include <opencv2/dpm.hpp>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
@@ -33,12 +32,15 @@ using namespace boost::python;
 using namespace std;
 
 using namespace cv;
-using namespace cv::dpm;
+//using namespace cv::dpm;
 
 extern "C"
 {
-void cuda_sum(float *a, float *b, float *c, size_t size);
-Mat my_seamlessclone_api_imp( void* face, void* body, void* mask, int centerX, int centerY, int gpu_id );
+//void cuda_sum(float *a, float *b, float *c, size_t size);
+void* my_seamlessclone_api_imp_create_instance( int gpu_id );
+Mat my_seamlessclone_api_imp_run( void* instance_ptr, void* face, void* body, void* mask, int centerX, int centerY, int gpu_id, bool bSync );
+void my_seamlessclone_api_imp_destroy( void* instance_ptr );
+void my_seamlessclone_api_imp_sync( void* instance_ptr );
 }
 
 static int failmsg(const char *fmt, ...)
@@ -56,8 +58,9 @@ static int failmsg(const char *fmt, ...)
 
 SeamlessClone::SeamlessClone()
 {
-    cuda_sum(NULL, NULL, NULL, 5);
-    
+    //cuda_sum(NULL, NULL, NULL, 5);
+    this->instance_ptr = NULL;
+    this->bSync = false;
 }
 
 SeamlessClone::~SeamlessClone() 
@@ -89,9 +92,26 @@ void SeamlessClone::loadMatsInSeamlessClone(PyObject* oface, PyObject* obody, Py
     return;
 }
 
+void SeamlessClone::destroy()
+{
+    my_seamlessclone_api_imp_destroy( this->instance_ptr );
+    this->instance_ptr = NULL;
+    return;
+}
+
+void SeamlessClone::sync()
+{
+    my_seamlessclone_api_imp_sync( this->instance_ptr );
+    return;
+}
+
 PyObject* SeamlessClone::seamlessClone()
 {
-    this->blendedMat = my_seamlessclone_api_imp( (void*)&this->face, (void*)&this->body, (void*)&this->mask, this->centerX, this->centerY, this->gpu_id );
+    if (this->instance_ptr==NULL)
+    {
+        this->instance_ptr = my_seamlessclone_api_imp_create_instance( this->gpu_id );
+    }
+    this->blendedMat = my_seamlessclone_api_imp_run( this->instance_ptr, (void*)&this->face, (void*)&this->body, (void*)&this->mask, this->centerX, this->centerY, this->gpu_id, this->bSync );
     
     PyObject* res = mat2py(this->blendedMat);
     return res;
@@ -205,7 +225,7 @@ void SeamlessClone::py2mat(const PyObject* o, cv::Mat &m)
     }
 }
 
-void SeamlessClone::multiRotPersDet(PyObject* o, int rotationStep, std::string detectorPath, float confidenceThr, std::string outputPath, bool visualizeResults)
+/*void SeamlessClone::multiRotPersDet(PyObject* o, int rotationStep, std::string detectorPath, float confidenceThr, std::string outputPath, bool visualizeResults)
 {
     // Initializing CSV output
     ofstream outFile;
@@ -261,4 +281,4 @@ void SeamlessClone::multiRotPersDet(PyObject* o, int rotationStep, std::string d
     outFile.close();
 
     return;
-}
+}*/

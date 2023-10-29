@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "seamlessclone_cuda.h"
 
-__global__ void cuda_sum_kernel(float *a, float *b, float *c, size_t size)
+/*__global__ void cuda_sum_kernel(float *a, float *b, float *c, size_t size)
 {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= size) {
@@ -11,11 +11,11 @@ __global__ void cuda_sum_kernel(float *a, float *b, float *c, size_t size)
     }
 
     c[idx] = a[idx] + b[idx];
-}
+}*/
 
 extern "C" {
 
-void cuda_sum(float *a, float *b, float *c, size_t size)
+/*void cuda_sum(float *a, float *b, float *c, size_t size)
 {
     float *d_a, *d_b, *d_c;
 
@@ -34,6 +34,6 @@ void cuda_sum(float *a, float *b, float *c, size_t size)
     cudaFree(d_b);
     cudaFree(d_c);
     printf("cuda_sum() called!\n");
-}
+}*/
 
 }

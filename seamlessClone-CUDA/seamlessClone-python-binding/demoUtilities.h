@@ -11,9 +11,8 @@
 #ifndef DEMO_UTILITIES_H
 #define DEMO_UTILITIES_H
 
-#include <opencv2/dpm.hpp>
 #include <opencv2/core/mat.hpp>
-
+/*#include <opencv2/dpm.hpp>
 namespace demo_utils
 {
 	// Timing Utilities
@@ -25,11 +24,11 @@ namespace demo_utils
 	void generateRotatedImages(const cv::Mat &image, std::vector<cv::Mat> &images, int degStep);
 
 	// Drawing Utilities
-	void drawBoxes(cv::Mat &frame, std::vector<cv::dpm::DPMDetector::ObjectDetection> ds, float threshold, cv::Scalar color);
+	//void drawBoxes(cv::Mat &frame, std::vector<cv::dpm::DPMDetector::ObjectDetection> ds, float threshold, cv::Scalar color);
 
 	// Saving Utilities
 	void saveDetections(int rot, std::vector<cv::dpm::DPMDetector::ObjectDetection> ds, std::ofstream &file, float threshold);
-}
+}*/
 
 #endif  /* DEMO_UTILITIES_H */
 

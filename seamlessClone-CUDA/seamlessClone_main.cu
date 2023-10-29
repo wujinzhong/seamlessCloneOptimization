@@ -87,5 +87,8 @@ int main(int argc, const char *argv[])
                   mask_image_path))
         return EXIT_FAILURE;
 
-  Mat retMat = seamlessClone_imp((void*)&patchMat, (void*)&destMat, (void*)&maskMat, centerX, centerY, gpu);
+  void* seamlessClone = seamlessClone_imp_create_instance(gpu);
+  bool bSync = True;
+  Mat retMat = seamlessClone_imp_run(seamlessClone, (void*)&patchMat, (void*)&destMat, (void*)&maskMat, centerX, centerY, gpu, bSync);
+  seamlessClone_imp_destroy(seamlessClone);
 }

@@ -23,4 +23,4 @@ cp ./seamlessClone_main.so /usr/lib/x86_64-linux-gnu/
 #./seamlessClone_main ./images/src_2400x1552.yml ./images/dst_4800x2694.yml ./images/src_mask_2400x1552.yml 2400 1347 1
 
 make
-cd ./seamlessClone-python-binding && make && python SeamlessClone_test.py && cd ..
+cd ./seamlessClone-python-binding && make && python SeamlessClone_test.py && cd .. 

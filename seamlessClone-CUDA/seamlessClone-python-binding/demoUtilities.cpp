@@ -15,7 +15,7 @@
 
 using namespace cv;
 
-namespace demo_utils
+/*namespace demo_utils
 {
     double tt_tic = 0;
 
@@ -85,4 +85,4 @@ namespace demo_utils
             file << buffer;
         }
     }
-}
+}*/

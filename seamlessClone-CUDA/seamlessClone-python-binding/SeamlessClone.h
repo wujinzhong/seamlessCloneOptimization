@@ -25,16 +25,29 @@ using namespace cv;
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/ndarrayobject.h>
 
-#if PYTHON3
-	static int do_numpy_import( )
-	{
-	    import_array( );
-	}
+// #if true //PYTHON3
+// 	static void do_numpy_import( )
+// 	{
+// 	    import_array( );
+// 	}
+// #else
+// 	static void do_numpy_import( )
+// 	{
+// 	    import_array( );
+// 	}
+// #endif
+
+#if true //PY_VERSION >= 3
+    static int  do_numpy_import()
+    {
+        import_array();
+        return 0;
+    }
 #else
-	static void do_numpy_import( )
-	{
-	    import_array( );
-	}
+    static void do_numpy_import()
+    {
+    import_array();
+    }
 #endif
 
 
@@ -49,21 +62,26 @@ public:
     void 		py2mat(const PyObject* o, cv::Mat &m);
 
     void 		loadMatsInSeamlessClone(PyObject* oface, PyObject* obody, PyObject* omask, int centerX, int centerY, int gpu_id);
+    void 		destroy();
+    void 		sync();
     PyObject*   seamlessClone();
     
     // Demo functions
     PyObject* 	loadImageInCpp_Demo(std::string imagePath);	
-    void 		multiRotPersDet(PyObject* o, int rotationStep, std::string detectorPath, float confidenceThr, std::string outputPath, bool visualizeResults);
+    //void 		multiRotPersDet(PyObject* o, int rotationStep, std::string detectorPath, float confidenceThr, std::string outputPath, bool visualizeResults);
     
     Mat face, body, mask, blendedMat; 
     int centerX, centerY, gpu_id;
+    void* instance_ptr;
+    bool bSync;
 };
 
 
 BOOST_PYTHON_MODULE(SeamlessClone)
 {
     Py_Initialize();
-    import_array();
+    //import_array();
+    do_numpy_import();
 
     // functions exposed in Python        
     boost::python::class_<SeamlessClone>("SeamlessClone", boost::python::init< >())        
@@ -71,9 +89,11 @@ BOOST_PYTHON_MODULE(SeamlessClone)
         .def("mat2py", &SeamlessClone::mat2py)
         .def("py2mat", &SeamlessClone::py2mat)
         .def("loadMatsInSeamlessClone", &SeamlessClone::loadMatsInSeamlessClone)
+        .def("destroy", &SeamlessClone::destroy)
+        .def("sync", &SeamlessClone::sync)
         .def("seamlessClone", &SeamlessClone::seamlessClone)
         .def("loadImageInCpp_Demo", &SeamlessClone::loadImageInCpp_Demo)        
-		.def("multiRotPersDet", &SeamlessClone::multiRotPersDet)
+		//.def("multiRotPersDet", &SeamlessClone::multiRotPersDet)
     ;
 }
 
